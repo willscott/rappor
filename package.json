@@ -1,0 +1,26 @@
+{
+  "name": "rappor",
+  "version": "0.0.0",
+  "description": "Javascript implementation of RAPPOR",
+  "main": "rappor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/willscott/rappor.git"
+  },
+  "keywords": [
+    "rappor",
+    "privacy",
+    "cryptography",
+    "security",
+    "randomization"
+  ],
+  "author": "Will Scott <willscott@gmail.com> (https://wills.co.tt)",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/willscott/rappor/issues"
+  },
+  "homepage": "https://github.com/willscott/rappor"
+}
