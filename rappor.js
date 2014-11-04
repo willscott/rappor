@@ -51,10 +51,10 @@ var simpleRandom = function (prob_one, num_bits, rand) {
  */
 var SimpleRandomFunctions = function (params, rand) {
   'use strict';
-
-  this.rand = rand;
+  
+  this.rand = rand || new SecureRandom();
   this.num_bits = params.num_bloombits;
-  this.cohort_rand_fn = rand || new SecureRandom();
+  this.cohort_rand_fn = this.rand.randint.bind(this.rand);
 
   this.f_gen = simpleRandom(params.prob_f, this.num_bits, rand);
   this.p_gen = simpleRandom(params.prob_p, this.num_bits, rand);
@@ -96,14 +96,29 @@ var Encoder = function (params, user_id, rand_funcs) {
  * B_i with probaility 1-f -- (&) -- mask_indices set to 0 here, i.e. no mask
  * Output bit indices corresponding to (&) and bits 0/1 corresponding to (*)
  */
-Encoder.prototype.get_rappor_masks = function () {
+Encoder.prototype.get_rappor_masks = function (word) {
   'use strict';
-  var assigned_cohort = this.rand_funcs.cohort_rand_fn(0,
-    this.params.num_cohorts - 1),
-    // Uniform bits for (*)
-    f_bits = this.rand_funcs.uniform_gen(),
-    // Mask indices are 1 with probability f.
-    mask_indices = this.rand_funcs.f_gen();
+  var assigned_cohort,
+    f_bits,
+    mask_indices,
+    stored_state;
+    
+
+  if (this.params.flag_oneprr) {
+    stored_state = this.rand_funcs.rand.getstate();
+    this.rand_funcs.rand.seed(this.user_id + word);
+  }
+
+  assigned_cohort = this.rand_funcs.cohort_rand_fn(0,
+    this.params.num_cohorts - 1);
+  // Uniform bits for (*)
+  f_bits = this.rand_funcs.uniform_gen();
+  // Mask indices are 1 with probability f.
+  mask_indices = this.rand_funcs.f_gen();
+
+  if (this.params.flag_oneprr) {
+    this.rand_funcs.rand.setstate(stored_state);
+  }
 
   return {
     assigned_cohort: assigned_cohort,
@@ -117,8 +132,9 @@ Encoder.prototype.get_rappor_masks = function () {
  */
 Encoder.prototype.encode = function (word) {
   'use strict';
-  var masks = this.get_rappor_masks(),
-    bloom_bits_array = 0,
+  var bitwise = require('./bufferUtil'),
+    masks = this.get_rappor_masks(word),
+    bloom_bits_array = new Uint8Array(Math.ceil(this.params.num_bloombits / 8)),
     i,
     bit_to_set,
     prr,
@@ -129,10 +145,13 @@ Encoder.prototype.encode = function (word) {
   for (i = 0; i < this.params.num_hashes; i += 1) {
     bit_to_set = get_bf_bit(word, masks.assigned_cohort, i,
                             this.params.num_bloombits);
-    bloom_bits_array |= (1 << bit_to_set);
+    bloom_bits_array[Math.floor(bit_to_set / 8)] |= (1 << (bit_to_set % 8));
   }
 
-  prr = (masks.f_bits & masks.mask_indices) | (bloom_bits_array & ~masks.mask_indices);
+  prr = bitwise.or(
+    bitwise.and(masks.f_bits, masks.mask_indices),
+    bitwise.and(bloom_bits_array.buffer, bitwise.not(masks.mask_indices))
+  );
 
   // Compute instantaneous randomized response:
   // If PRR bit is set, output 1 with probability q
@@ -140,8 +159,15 @@ Encoder.prototype.encode = function (word) {
   p_bits = this.rand_funcs.p_gen();
   q_bits = this.rand_funcs.q_gen();
 
-  irr = (p_bits & ~prr) | (q_bits & prr);
-  return irr;
+  irr = bitwise.or(
+    bitwise.and(p_bits, bitwise.not(prr)),
+    bitwise.and(q_bits, prr)
+  );
+
+  return {
+    cohort: masks.assigned_cohort,
+    irr: irr
+  };
 };
 
 var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
