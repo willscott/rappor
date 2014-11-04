@@ -67,10 +67,12 @@ function get_bf_bit(input_word, cohort, hash_no, num_bloombits) {
 
   // returns the bit to set in the bloom filter.
   var toHash = String(cohort) + String(hash_no) + String(input_word),
-    sha1 = require('sha-1')(toHash);
+    sha1 = require('sha-1')(toHash),
+    a = sha1.substr(0, 2),
+    b = sha1.substr(2, 2);
   // Use last two bytes as the hash. We want to allow more than 2^8 = 256 bits,
   // but 2^16 = 65536 is more than enough. Default is 16 bits.
-  return parseInt("0x" + sha1.substr(-4), 16) % num_bloombits;
+  return parseInt("0x" + b + a, 16) % num_bloombits;
 }
 
 /**
@@ -159,4 +161,5 @@ var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
 exports.Encoder = Encoder;
 exports.Params = Params;
 exports.SimpleRandomFunctions = SimpleRandomFunctions;
+exports.get_bf_bit = get_bf_bit;
 exports.update_rappor_sums = update_rappor_sums;

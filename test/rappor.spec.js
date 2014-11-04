@@ -1,6 +1,6 @@
 /*jslint node: true */
 /*globals describe, it, beforeEach, afterEach */
-/*globals Uint8Array,Uint32Array */
+/*globals Uint8Array,Uint16Array,Uint32Array */
 
 describe("RAPPOR", function () {
   'use strict';
@@ -72,11 +72,24 @@ describe("RAPPOR", function () {
     expect(masks.mask_indices).to.deep.equal(mask_exp.buffer);
   });
 
-  it("Gets Bloom Filter Bits");
+  it("Gets Bloom Filter Bits", function () {
+    var cohort = 0,
+      hash_no = 0,
+      input_word = "abc",
+      ti = typical_instance,
+      expected_output = 3,
+      actual_output;
+
+    actual_output = rappor.get_bf_bit(input_word, cohort, hash_no,
+                                      ti.num_bloombits);
+    expect(expected_output).to.equal(actual_output);
+  });
 
   it("Gets Rappor Masks With One PRR");
 
   it("Encodes");
+
+
 
   /**
    * Return one of three random values in a cyclic manner.
