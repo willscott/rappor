@@ -60,7 +60,7 @@ describe("RAPPOR", function () {
     rand_funcs = new rappor.SimpleRandomFunctions(params, rand);
     rand_funcs.cohort_rand_fn = function (a, b) {return a; };
 
-    encoder = new rappor.Encoder(params, 'none', rand_funcs);
+    encoder = new rappor.Encoder('none', params, rand_funcs);
     masks = encoder.get_rappor_masks();
 
     expect(masks.assigned_cohort).to.equal(0);
@@ -101,7 +101,7 @@ describe("RAPPOR", function () {
     params.flag_oneprr = true;
     rand_funcs = new rappor.SimpleRandomFunctions(params, rand);
 
-    encoder = new rappor.Encoder(params, '0', rand_funcs);
+    encoder = new rappor.Encoder('0', params, rand_funcs);
     masks1 = encoder.get_rappor_masks("abc");
     masks2 = encoder.get_rappor_masks("abc");
     masks3 = encoder.get_rappor_masks("abcd");
@@ -142,7 +142,7 @@ describe("RAPPOR", function () {
     rand_funcs = new rappor.SimpleRandomFunctions(params, rand);
     rand_funcs.cohort_rand_fn = function (x) { return x; };
 
-    encoder = new rappor.Encoder(params, 0, rand_funcs);
+    encoder = new rappor.Encoder(0, params, rand_funcs);
     output = encoder.encode("abc");
 
     expect(output.cohort).to.equal(0);

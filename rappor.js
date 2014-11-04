@@ -99,7 +99,7 @@ function get_bf_bit(input_word, cohort, hash_no, num_bloombits) {
 var randBits = function (prob_one, num_bits) {
   'use strict';
   var state = {
-    p: prob_one * 0xffff,
+    p: prob_one * 0xffffffff,
     n: num_bits
   };
 
@@ -146,15 +146,15 @@ var AdvancedRandomFunctions = function (params) {
 
 /**
  * The encoder obfuscates values for a given user using the RAPPOR algorithm
- * @param {Params} RAPPOR Params Controlling privacy
  * @param {String} user_id user ID, for generating cohort.
+ * @param {Params} RAPPOR Params Controlling privacy
  * @param {rand_funcs} Randomness, can be deterministic for testing.
  */
-var Encoder = function (params, user_id, rand_funcs) {
+var Encoder = function (user_id, params, rand_funcs) {
   'use strict';
   this.params = params || Params;
   this.user_id = user_id;
-  this.rand_funcs = rand_funcs || new SimpleRandomFunctions(this.params);
+  this.rand_funcs = rand_funcs || new AdvancedRandomFunctions(this.params);
 };
 
 /**
