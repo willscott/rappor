@@ -1,5 +1,5 @@
 /*jslint bitwise: true, node: true */
-/*globals Uint8Array,DataView */
+/*globals Uint8Array,Uint32Array, DataView, crypto */
 
 /**
  * This code attempts to be a functionally equivalent javascript translation of
@@ -19,7 +19,23 @@ var Params = {
   prob_f: 0.5
 };
 
-var SecureRandom = 0;
+/**
+ * An implementation of random and randint backed by the insecure
+ * Math.random. Useful for testing, but should not be used with real data.
+ */
+var NativeRandom = function () {
+  'use strict';
+};
+
+NativeRandom.prototype.random = function () {
+  'use strict';
+  return Math.random();
+};
+
+NativeRandom.prototype.randint = function (a, b) {
+  'use strict';
+  return Math.floor(Math.random() * (b - a)) + a;
+};
 
 /**
  * Create a buffer of {num_bits} random bits, where each bit has probability 
@@ -52,7 +68,7 @@ var simpleRandom = function (prob_one, num_bits, rand) {
 var SimpleRandomFunctions = function (params, rand) {
   'use strict';
   
-  this.rand = rand || new SecureRandom();
+  this.rand = rand || new NativeRandom();
   this.num_bits = params.num_bloombits;
   this.cohort_rand_fn = this.rand.randint.bind(this.rand);
 
@@ -74,6 +90,59 @@ function get_bf_bit(input_word, cohort, hash_no, num_bloombits) {
   // but 2^16 = 65536 is more than enough. Default is 16 bits.
   return parseInt("0x" + b + a, 16) % num_bloombits;
 }
+
+/**
+ * Create a buffer of {num_bits} random bits, where each bit has probability 
+ * {prob_one} of being 1. Uses 32 bit precision with cryptographically random
+ * values backed by crypto.getRandom
+ */
+var randBits = function (prob_one, num_bits) {
+  'use strict';
+  var state = {
+    p: prob_one * 0xffff,
+    n: num_bits
+  };
+
+  return function (state) {
+    var randomness,
+      output = new Uint8Array(Math.ceil(state.n / 8)),
+      i = 0;
+
+    if (crypto.getRandomValues) {
+      // Browser.
+      randomness = new Uint32Array(Math.ceil(state.n));
+      crypto.getRandomValues(randomness);
+    } else if (crypto.randomBytes) {
+      // Node.
+      randomness = new Uint32Array(new Uint8Array(
+        crypto.randomBytes(4 * state.n)
+      ).buffer);
+    }
+
+    for (i = 0; i < state.n; i += 1) {
+      if (randomness[i] < state.p) {
+        output[Math.floor(i / 8)] |= (1 << (i % 8));
+      }
+    }
+    return output.buffer;
+  }.bind({}, state);
+};
+
+/**
+ * Alternative Random distribution provider.
+ */
+var AdvancedRandomFunctions = function (params) {
+  'use strict';
+
+  // Note: does not support seeding or getstate/setstate
+  var rand = new NativeRandom();
+  this.cohort_rand_fn = rand.randint.bind(rand);
+  this.num_bits = params.num_bloombits;
+  this.f_gen = randBits(params.prob_f, this.num_bits);
+  this.p_gen = randBits(params.prob_p, this.num_bits);
+  this.q_gen = randBits(params.prob_q, this.num_bits);
+  this.uniform_gen = randBits(0.5, this.num_bits);
+};
 
 /**
  * The encoder obfuscates values for a given user using the RAPPOR algorithm
@@ -187,5 +256,6 @@ var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
 exports.Encoder = Encoder;
 exports.Params = Params;
 exports.SimpleRandomFunctions = SimpleRandomFunctions;
+exports.AdvancedRandomFunctions = AdvancedRandomFunctions;
 exports.get_bf_bit = get_bf_bit;
 exports.update_rappor_sums = update_rappor_sums;
