@@ -1,5 +1,5 @@
 /*jslint bitwise: true, node: true */
-/*globals UInt8Array */
+/*globals Uint8Array,DataView */
 
 /**
  * This code attempts to be a functionally equivalent javascript translation of
@@ -19,6 +19,8 @@ var Params = {
   prob_f: 0.5
 };
 
+var SecureRandom = 0;
+
 /**
  * Create a buffer of {num_bits} random bits, where each bit has probability 
  * {prob_one} of being 1.
@@ -32,15 +34,15 @@ var simpleRandom = function (prob_one, num_bits, rand) {
   };
 
   return function (state) {
-    var r = new UInt8Array(Math.ceil(state.n / 8)),
+    var r = new Uint8Array(Math.ceil(state.n / 8)),
       i = 0;
 
     for (i = 0; i < state.n; i += 1) {
-      if (state.r() < state.p) {
+      if (state.r.random() < state.p) {
         r[Math.floor(i / 8)] |= (1 << (i % 8));
       }
     }
-    return r;
+    return r.buffer;
   }.bind({}, state);
 };
 
@@ -52,7 +54,7 @@ var SimpleRandomFunctions = function (params, rand) {
 
   this.rand = rand;
   this.num_bits = params.num_bloombits;
-  this.cohort_rand_fn = rand;
+  this.cohort_rand_fn = rand || new SecureRandom();
 
   this.f_gen = simpleRandom(params.prob_f, this.num_bits, rand);
   this.p_gen = simpleRandom(params.prob_p, this.num_bits, rand);
@@ -81,7 +83,7 @@ var Encoder = function (params, user_id, rand_funcs) {
   'use strict';
   this.params = params || Params;
   this.user_id = user_id;
-  this.rand_funcs = rand_funcs || new SimpleRandomFunctions();
+  this.rand_funcs = rand_funcs || new SimpleRandomFunctions(this.params);
 };
 
 /**
@@ -140,6 +142,21 @@ Encoder.prototype.encode = function (word) {
   return irr;
 };
 
-exports.Params = Params;
-exports.Encoder = Encoder;
+var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
+  'use strict';
+  var bit_num = params.num_bloombits,
+    i,
+    rapporView = new DataView(rappor);
+  for (i = 0; i < bit_num; i += 1) {
+    if (rapporView.getUint8(Math.floor(i / 8)) & (1 << (i % 8))) {
+      rappor_sum[cohort][i + 1] += 1;
+    }
+  }
 
+  rappor_sum[cohort][0] += 1;
+};
+
+exports.Encoder = Encoder;
+exports.Params = Params;
+exports.SimpleRandomFunctions = SimpleRandomFunctions;
+exports.update_rappor_sums = update_rappor_sums;
