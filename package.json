@@ -4,7 +4,7 @@
   "description": "Javascript implementation of RAPPOR",
   "main": "rappor.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "grunt test --verbose"
   },
   "repository": {
     "type": "git",
