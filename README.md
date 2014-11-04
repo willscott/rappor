@@ -1,4 +1,4 @@
-rappor
+RAPPOR
 ======
 
-Javascript implementation of the RAPPOR algorithm
+Javascript implementation of the RAPPOR algorithm, described at https://github.com/google/rappor.
