@@ -16,35 +16,6 @@ describe("RAPPOR", function () {
       flag_oneprr: false
     },
     MockRandom;
-  
-  it("Updates sums with less than a 32 bit bloom filter", function () {
-    var report = new Uint32Array(1),
-      rappor_sum,
-      cohort = 42,
-      expected_sum,
-      i;
-    
-    report[0] = 0x1d; // from LSB, bits 1,3,4,5 set.
-
-    // Empty sums.
-    rappor_sum = [];
-    expected_sum = [];
-    for (i = 0; i < typical_instance.num_cohorts; i += 1) {
-      rappor_sum.push(new Uint8Array(typical_instance.num_bloombits + 1));
-      expected_sum.push(new Uint8Array(typical_instance.num_bloombits + 1));
-    }
-
-    // Set up expected value.
-    expected_sum[42][0] = 1;
-    expected_sum[42][1] = 1;
-    expected_sum[42][3] = 1;
-    expected_sum[42][4] = 1;
-    expected_sum[42][5] = 1;
-
-    rappor.update_rappor_sums(rappor_sum, report.buffer, cohort, typical_instance);
-
-    expect(rappor_sum).to.deep.equal(expected_sum);
-  });
 
   it("Gets Rappor Masks Without One PRR", function () {
     var params = JSON.parse(JSON.stringify(typical_instance)),

@@ -239,23 +239,8 @@ Encoder.prototype.encode = function (word) {
   };
 };
 
-var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
-  'use strict';
-  var bit_num = params.num_bloombits,
-    i,
-    rapporView = new DataView(rappor);
-  for (i = 0; i < bit_num; i += 1) {
-    if (rapporView.getUint8(Math.floor(i / 8)) & (1 << (i % 8))) {
-      rappor_sum[cohort][i + 1] += 1;
-    }
-  }
-
-  rappor_sum[cohort][0] += 1;
-};
-
 exports.Encoder = Encoder;
 exports.Params = Params;
 exports.SimpleRandomFunctions = SimpleRandomFunctions;
 exports.AdvancedRandomFunctions = AdvancedRandomFunctions;
 exports.get_bf_bit = get_bf_bit;
-exports.update_rappor_sums = update_rappor_sums;
