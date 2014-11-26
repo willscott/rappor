@@ -98,11 +98,11 @@ describe("RAPPOR Aggregate Statistics", function () {
     // There are ~350 entries per cohort, and each rappor should appear to have
     // 2 bits set, since there's minimal noise added here. As such, we expect
     // an average value of 44 for
-    // each summed bit. stdev=~6 here, so we claim values should be w/i 30.
+    // each summed bit. stdev=~6 here, so we claim values should be w/i 36.
     for (i = 0; i < sum.length; i += 1) {
       row = sum[i].split(',');
       for (j = 1; j < row.length; j += 1) {
-        expect(parseInt(row[j], 10)).to.be.within(44 - 30, 44 + 30);
+        expect(parseInt(row[j], 10)).to.be.within(44 - 36, 44 + 36);
       }
     }
   });
