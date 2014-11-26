@@ -32,9 +32,12 @@ NativeRandom.prototype.random = function () {
   return Math.random();
 };
 
+/**
+ * Get a random integer between a and b, inclusive.
+ */
 NativeRandom.prototype.randint = function (a, b) {
   'use strict';
-  return Math.floor(Math.random() * (b - a)) + a;
+  return Math.floor(Math.random() * (b + 1 - a)) + a;
 };
 
 /**
@@ -101,7 +104,8 @@ var randBits = function (prob_one, num_bits) {
   var state = {
     p: prob_one * 0xffffffff,
     n: num_bits
-  };
+  },
+    crypto = require('crypto');
 
   return function (state) {
     var randomness,
@@ -235,8 +239,27 @@ Encoder.prototype.encode = function (word) {
 
   return {
     cohort: masks.assigned_cohort,
-    irr: irr
+    irr: irr,
+    toString: this.toString.bind(this, masks.assigned_cohort, irr)
   };
+};
+
+/**
+ * Generate a string format of a RAPPOR entry compatible with
+ * the sum_bits aggregator.
+ */
+Encoder.prototype.toString = function (cohort, irr) {
+  'use strict';
+  var bitwise = require('./bufferUtil'),
+    output;
+
+  output = String(this.user_id);
+  output += ",";
+  output += String(cohort);
+  output += ",";
+  output += bitwise.toBinaryString(irr);
+
+  return output;
 };
 
 exports.Encoder = Encoder;

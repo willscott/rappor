@@ -14,7 +14,7 @@ module.exports = function (grunt) {
       }
     },
     jshint: {
-      all: ['Gruntfile.js', 'rappor.js', 'analysis/**.js', 'test/**.js']
+      all: ['**/*.js', '!node_modules/**']
     }
   });
 

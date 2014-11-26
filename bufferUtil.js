@@ -35,3 +35,21 @@ exports.not = function (a) {
   }
   return out.buffer;
 };
+
+exports.toBinaryString = function (a) {
+  'use strict';
+  var view = new Uint8Array(a),
+    out = '',
+    i,
+    j;
+  for (i = 0; i < a.byteLength; i += 1) {
+    for (j = 0; j < 8; j += 1) {
+      if ((view[i] & (1 << j)) > 0) {
+        out += '1';
+      } else {
+        out += '0';
+      }
+    }
+  }
+  return out;
+};
