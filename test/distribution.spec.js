@@ -51,37 +51,19 @@ var generate_simulated_input = function (rand, params) {
   return input;
 };
 
-var expectInnocuous = function (expect, sum) {
-  'use strict';
-  var i, j, row;
-
-  // There should be NUM_CLIENTS * NUM_VALUES_PER_CLIENT entries.
-  expect(parseInt(sum[0].split(',')[0], 10) +
-         parseInt(sum[1].split(',')[0], 10)).to.equal(100 * 7);
-
-  // There are ~350 entries per cohort, and each rappor should appear to have
-  // each bit set with p=.5. As such, we expect an average value of 175 for
-  // each summed bit. stdev=~10 here, so we claim values should be w/i 50.
-  for (i = 0; i < sum.length; i += 1) {
-    row = sum[i].split(',');
-    for (j = 1; j < row.length; j += 1) {
-      expect(parseInt(row[j], 10)).to.be.within(175 - 50, 175 + 50);
-    }
-  }
-};
-
 describe("RAPPOR Aggregate Statistics", function () {
   'use strict';
   var rappor = require('../rappor'),
     sum_bits = require('../analysis/sum_bits'),
+    decode = require('../analysis/decode'),
     expect = require('chai').expect,
     typical_instance = {
       num_cohorts: 64,
       num_hashes: 2,
       num_bloombits: 16,
-      prob_p: 0.4,
-      prob_q: 0.7,
-      prob_f: 0.3,
+      prob_p: 0.01,
+      prob_q: 0.99,
+      prob_f: 0.01,
       flag_oneprr: false
     };
 
@@ -92,6 +74,7 @@ describe("RAPPOR Aggregate Statistics", function () {
       input,
       i = 0,
       j = 0,
+      row,
       sum;
 
     params.num_cohorts = 2;
@@ -109,9 +92,19 @@ describe("RAPPOR Aggregate Statistics", function () {
 
     sum = sum_bits.sum_bits(params, rappors);
 
-    expectInnocuous(expect, sum);
+    expect(parseInt(sum[0].split(',')[0], 10) +
+           parseInt(sum[1].split(',')[0], 10)).to.equal(100 * 7);
 
-    console.warn('Uniform Distribution Summed Bits', sum);
+    // There are ~350 entries per cohort, and each rappor should appear to have
+    // 2 bits set, since there's minimal noise added here. As such, we expect
+    // an average value of 44 for
+    // each summed bit. stdev=~6 here, so we claim values should be w/i 30.
+    for (i = 0; i < sum.length; i += 1) {
+      row = sum[i].split(',');
+      for (j = 1; j < row.length; j += 1) {
+        expect(parseInt(row[j], 10)).to.be.within(44 - 30, 44 + 30);
+      }
+    }
   });
 
   it("Maintains a gaussian distribution in aggregate", function () {
@@ -121,7 +114,12 @@ describe("RAPPOR Aggregate Statistics", function () {
       input,
       i = 0,
       j = 0,
-      sum;
+      row,
+      sum,
+      peaks,
+      add = function (a, b) {
+        return a + b;
+      };
 
     params.num_cohorts = 2;
 
@@ -138,8 +136,23 @@ describe("RAPPOR Aggregate Statistics", function () {
 
     sum = sum_bits.sum_bits(params, rappors);
 
-    expectInnocuous(expect, sum);
+    expect(parseInt(sum[0].split(',')[0], 10) +
+           parseInt(sum[1].split(',')[0], 10)).to.equal(100 * 7);
 
-    console.warn('Gaussian Distribution Summed Bits', sum);
+    sum = decode.denoise(sum, params);
+    // Here we look for a peak - namely that there is some item in each
+    // cohort at mean + 4sigma. That presence indicates to us that this
+    // is not just a uniform distribution, although it's just a sanity
+    // check.
+    for (i = 0; i < sum.length; i += 1) {
+      row = sum[i].reduce(add, 0) / sum[i].length;
+      peaks = 0;
+      for (j = 0; j < sum[i].length; j += 1) {
+        if (sum[i][j] > row + 4 * 6) {
+          peaks += 1;
+        }
+      }
+      expect(peaks).to.be.at.least(1);
+    }
   });
 });
