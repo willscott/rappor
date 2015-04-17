@@ -60,7 +60,7 @@ exports.toHexString = function (a) {
     out = '',
     i,
     encodingArr = '0123456789abcdef'.split('');
-  for (i = 0; i < a.bytelengh; i += 1) {
+  for (i = 0; i < a.byteLengh; i += 1) {
     out += encodingArr[view[i] >>> 4];
     out += encodingArr[view[i] & 0x0F];
   }

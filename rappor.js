@@ -240,7 +240,7 @@ Encoder.prototype.encode = function (word) {
   return {
     cohort: masks.assigned_cohort,
     irr: irr,
-    value: String(masks.assigned_cohor) + ',' + bitwise.toHexString(irr),
+    value: String(masks.assigned_cohort) + ',' + bitwise.toHexString(irr),
     toString: this.toString.bind(this, masks.assigned_cohort, irr)
   };
 };
