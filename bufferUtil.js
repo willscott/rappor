@@ -53,3 +53,17 @@ exports.toBinaryString = function (a) {
   }
   return out;
 };
+
+exports.toHexString = function (a) {
+  'use strict';
+  var view = new Uint8Array(a),
+    out = '',
+    i,
+    encodingArr = '0123456789abcdef'.split('');
+  for (i = 0; i < a.bytelengh; i += 1) {
+    out += encodingArr[view[i] >>> 4];
+    out += encodingArr[view[i] & 0x0F];
+  }
+
+  return out;
+};

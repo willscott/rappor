@@ -41,7 +41,7 @@ NativeRandom.prototype.randint = function (a, b) {
 };
 
 /**
- * Create a buffer of {num_bits} random bits, where each bit has probability 
+ * Create a buffer of {num_bits} random bits, where each bit has probability
  * {prob_one} of being 1.
  */
 var simpleRandom = function (prob_one, num_bits, rand) {
@@ -70,7 +70,7 @@ var simpleRandom = function (prob_one, num_bits, rand) {
  */
 var SimpleRandomFunctions = function (params, rand) {
   'use strict';
-  
+
   this.rand = rand || new NativeRandom();
   this.num_bits = params.num_bloombits;
   this.cohort_rand_fn = this.rand.randint.bind(this.rand);
@@ -95,7 +95,7 @@ function get_bf_bit(input_word, cohort, hash_no, num_bloombits) {
 }
 
 /**
- * Create a buffer of {num_bits} random bits, where each bit has probability 
+ * Create a buffer of {num_bits} random bits, where each bit has probability
  * {prob_one} of being 1. Uses 32 bit precision with cryptographically random
  * values backed by crypto.getRandom
  */
@@ -175,7 +175,7 @@ Encoder.prototype.get_rappor_masks = function (word) {
     f_bits,
     mask_indices,
     stored_state;
-    
+
 
   if (this.params.flag_oneprr) {
     stored_state = this.rand_funcs.rand.getstate();
@@ -240,6 +240,7 @@ Encoder.prototype.encode = function (word) {
   return {
     cohort: masks.assigned_cohort,
     irr: irr,
+    value: String(masks.assigned_cohor) + ',' + bitwise.toHexString(irr),
     toString: this.toString.bind(this, masks.assigned_cohort, irr)
   };
 };
