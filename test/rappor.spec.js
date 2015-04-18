@@ -68,7 +68,7 @@ describe("RAPPOR", function () {
       masks1,
       masks2,
       masks3;
-      
+
     params.flag_oneprr = true;
     rand_funcs = new rappor.SimpleRandomFunctions(params, rand);
 
@@ -84,6 +84,31 @@ describe("RAPPOR", function () {
     masks1 = encoder.get_rappor_masks("abc");
     masks2 = encoder.get_rappor_masks("abc");
     expect(masks1).not.to.deep.equal(masks2);
+  });
+
+  it("Memoizes as a strategy for One PRR", function () {
+    // Set randomness function to be used with sample 32 random bits
+    // set randomness function that takes two integers and returns a
+    // random integer cohort in [a, b]
+    var params = JSON.parse(JSON.stringify(typical_instance)),
+      num_words = params.num_bloombits,
+      state = {},
+      rand_funcs,
+      encoder,
+      masks1,
+      masks2,
+      masks3;
+
+    params.flag_oneprr = true;
+    rand_funcs = new rappor.MemoizedRandomFunctions(params, state);
+
+    encoder = new rappor.Encoder('0', params, rand_funcs);
+    masks1 = encoder.get_rappor_masks("abc");
+    masks2 = encoder.get_rappor_masks("abc");
+    masks3 = encoder.get_rappor_masks("abcd");
+
+    expect(masks1).to.deep.equal(masks2);
+    expect(masks1).not.to.deep.equal(masks3);
   });
 
   it("Encodes", function () {
@@ -105,7 +130,7 @@ describe("RAPPOR", function () {
       rand_funcs,
       encoder,
       output;
-    
+
     params.prob_f = 0.5;
     params.prob_p = 0.5;
     params.prob_q = 0.75;
@@ -160,5 +185,5 @@ describe("RAPPOR", function () {
     this.counter = (this.counter + 1) % this.n;
     return rand_val;
   };
-  
+
 });

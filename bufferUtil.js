@@ -67,3 +67,19 @@ exports.toHexString = function (a) {
 
   return out;
 };
+
+exports.fromHexString = function (str, buf) {
+  'use strict';
+  var view = new Uint8Array(buf),
+    i,
+    encodingArr = '0123456789abcdef'.split('');
+
+  if (str.length % 2 !== 0 || str.length !== 2 * view.byteLength) {
+    console.error('Invalid Parameters to fromHexString.');
+    return;
+  }
+
+  for (i = 0; i < str.length; i += 2) {
+    buf[i/2] = (encodingArr.indexOf(str[i]) << 4) + encodingArr.indexOf(str[i + 1]);
+  }
+};

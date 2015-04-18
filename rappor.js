@@ -41,6 +41,66 @@ NativeRandom.prototype.randint = function (a, b) {
 };
 
 /**
+ * An implementation of random and randint with a state buffer where values
+ * recorded while in a known seed state are replayed for subsequent instances
+ * of the same seed.
+ */
+var MemoizingRandom = function (state) {
+  'use strict';
+  this.seedval = 0;
+  this.pos = 0;
+  this.state = state;
+};
+
+MemoizingRandom.prototype.randint = function (a, b) {
+  'use strict';
+
+  if (this.seedval) {
+    if (!this.state[this.seedval]) {
+      this.state[this.seedval] = [];
+    }
+    if (this.state[this.seedval].length <= this.pos) {
+      this.state[this.seedval].push(Math.floor(Math.random() * (b + 1 - a)) + a);
+    }
+    this.pos += 1;
+    return this.state[this.seedval][this.pos - 1];
+  } else {
+    return Math.floor(Math.random() * (b + 1 - a)) + a;
+  }
+};
+
+MemoizingRandom.prototype.makeDeterministic = function (typedArray) {
+  var bufferUtil = require('./bufferUtil');
+  if (this.seedval) {
+    if (!this.state[this.seedval]) {
+      this.state[this.seedval] = [];
+    }
+    if (this.state[this.seedval][this.pos]) {
+      bufferUtil.fromHexString(this.state[this.seedval][this.pos], typedArray);
+    } else {
+      this.state[this.seedval].push(bufferUtil.toHexString(typedArray));
+    }
+    this.pos += 1;
+  } else {
+    return typedArray;
+  }
+};
+
+MemoizingRandom.prototype.getstate = function () {
+  return this.seedval;
+};
+
+MemoizingRandom.prototype.setstate = function (state) {
+  this.seedval = 0;
+  this.pos = 0;
+};
+
+MemoizingRandom.prototype.seed = function (seed) {
+  this.seedval = seed;
+  this.pos = 0;
+};
+
+/**
  * Create a buffer of {num_bits} random bits, where each bit has probability
  * {prob_one} of being 1.
  */
@@ -99,11 +159,12 @@ function get_bf_bit(input_word, cohort, hash_no, num_bloombits) {
  * {prob_one} of being 1. Uses 32 bit precision with cryptographically random
  * values backed by crypto.getRandom
  */
-var randBits = function (prob_one, num_bits) {
+var randBits = function (prob_one, num_bits, rand) {
   'use strict';
   var state = {
     p: prob_one * 0xffffffff,
-    n: num_bits
+    n: num_bits,
+    r: rand
   },
     crypto = require('crypto');
 
@@ -128,6 +189,11 @@ var randBits = function (prob_one, num_bits) {
         output[Math.floor(i / 8)] |= (1 << (i % 8));
       }
     }
+
+    if (state.r.makeDeterministic) {
+      state.r.makeDeterministic(output);
+    }
+
     return output.buffer;
   }.bind({}, state);
 };
@@ -142,10 +208,27 @@ var AdvancedRandomFunctions = function (params) {
   var rand = new NativeRandom();
   this.cohort_rand_fn = rand.randint.bind(rand);
   this.num_bits = params.num_bloombits;
-  this.f_gen = randBits(params.prob_f, this.num_bits);
-  this.p_gen = randBits(params.prob_p, this.num_bits);
-  this.q_gen = randBits(params.prob_q, this.num_bits);
-  this.uniform_gen = randBits(0.5, this.num_bits);
+  this.f_gen = randBits(params.prob_f, this.num_bits, rand);
+  this.p_gen = randBits(params.prob_p, this.num_bits, rand);
+  this.q_gen = randBits(params.prob_q, this.num_bits, rand);
+  this.uniform_gen = randBits(0.5, this.num_bits, rand);
+};
+
+/**
+ * Alternate Random distribution provider which allows memoization of
+ * values generated due to known seeds, so that they will be re-generated
+ * in a deterministic way.
+ */
+var MemoizedRandomFunctions = function(params, state) {
+  'use strict';
+
+  this.rand = new MemoizingRandom(state);
+  this.cohort_rand_fn = this.rand.randint.bind(this.rand);
+  this.num_bits = params.num_bloombits;
+  this.f_gen = randBits(params.prob_f, this.num_bits, this.rand);
+  this.p_gen = randBits(params.prob_p, this.num_bits, this.rand);
+  this.q_gen = randBits(params.prob_q, this.num_bits, this.rand);
+  this.uniform_gen = randBits(0.5, this.num_bits, this.rand);
 };
 
 /**
@@ -267,4 +350,5 @@ exports.Encoder = Encoder;
 exports.Params = Params;
 exports.SimpleRandomFunctions = SimpleRandomFunctions;
 exports.AdvancedRandomFunctions = AdvancedRandomFunctions;
+exports.MemoizedRandomFunctions = MemoizedRandomFunctions;
 exports.get_bf_bit = get_bf_bit;

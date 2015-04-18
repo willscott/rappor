@@ -46,4 +46,14 @@ describe("Buffer Utilities", function () {
 
     expect(bufferUtil.toHexString(a)).to.equal(expected);
   });
+
+  it("Recreates buffers from Hex Strings", function () {
+    var a = new Uint8Array([255, 128, 1, 4]),
+        b = new Uint8Array([0, 0, 0, 0]),
+        expected = "ff800104";
+    expect(bufferUtil.toHexString(a)).to.equal(expected);
+
+    bufferUtil.fromHexString(expected, b);
+    expect(bufferUtil.toBinaryString(a)).to.equal(bufferUtil.toBinaryString(b));
+  });
 });
