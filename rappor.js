@@ -163,7 +163,7 @@ var randBits = function (prob_one, num_bits, rand) {
   'use strict';
   var state = {
     p: prob_one * 0xffffffff,
-    n: num_bits,
+    n: Math.ceil(num_bits),
     r: rand
   },
     crypto = require('crypto');
@@ -175,7 +175,7 @@ var randBits = function (prob_one, num_bits, rand) {
 
     if (crypto.getRandomValues) {
       // Browser.
-      randomness = new Uint32Array(Math.ceil(state.n));
+      randomness = new Uint32Array(state.n);
       crypto.getRandomValues(randomness);
     } else if (crypto.randomBytes) {
       // Node.
@@ -265,8 +265,13 @@ Encoder.prototype.get_rappor_masks = function (word) {
     this.rand_funcs.rand.seed(this.user_id + word);
   }
 
-  assigned_cohort = this.rand_funcs.cohort_rand_fn(0,
-    this.params.num_cohorts - 1);
+  assigned_cohort = this.params.num_cohorts;
+
+  while (assigned_cohort >= this.params.num_cohorts) {
+    assigned_cohort = this.rand_funcs.cohort_rand_fn(0,
+      this.params.num_cohorts - 1);
+  }
+  
   // Uniform bits for (*)
   f_bits = this.rand_funcs.uniform_gen();
   // Mask indices are 1 with probability f.
