@@ -48,7 +48,7 @@ describe("RAPPOR", function () {
       hash_no = 0,
       input_word = "abc",
       ti = typical_instance,
-      expected_output = 3,
+      expected_output = 6,
       actual_output;
 
     actual_output = rappor.get_bf_bit(input_word, cohort, hash_no,

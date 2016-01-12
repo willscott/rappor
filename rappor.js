@@ -141,17 +141,32 @@ var SimpleRandomFunctions = function (params, rand) {
   this.uniform_gen = simpleRandom(0.5, this.num_bits, rand);
 };
 
+function bigendian_encode(val) {
+  'use strict';
+
+  var result = "";
+  for (var i = 24; i >= 0; i-=8) {
+    var theByte = (val & (0xFF << i)) >> i;
+    result = result.concat(String.fromCharCode(theByte));
+  }
+  return result;
+}
+
+
 function get_bf_bit(input_word, cohort, hash_no, num_bloombits) {
   'use strict';
 
-  // returns the bit to set in the bloom filter.
-  var toHash = String(cohort) + String(hash_no) + String(input_word),
-    sha1 = require('sha-1')(toHash),
-    a = sha1.substr(0, 2),
-    b = sha1.substr(2, 2);
-  // Use last two bytes as the hash. We want to allow more than 2^8 = 256 bits,
-  // but 2^16 = 65536 is more than enough. Default is 16 bits.
-  return parseInt("0x" + b + a, 16) % num_bloombits;
+  // Encode the cohort and inpud_word in the same as the python rappor client
+  // does, so that its hash_candidates.py will work for decoding our output.
+  // Follow the RAPPOR python client as closely as possible, so that we can
+  // debug against it as a reference implementation.
+  var value = bigendian_encode(cohort) + input_word;
+  var md5 = require('md5')(value);
+
+  var b = md5.substr(2*hash_no,1);
+  var a = md5.substr(1+ (2*hash_no),1);
+
+  return parseInt(''+b+''+a,16) % num_bloombits;
 }
 
 /**

@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "chai": "^1.10.0",
+    "md5": "^2.0.0",
     "gaussian": "^1.0.0",
     "grunt": "^0.4.5",
     "grunt-contrib-jshint": "^0.10.0",

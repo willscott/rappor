@@ -19,9 +19,9 @@ describe("RAPPOR Candidate Mapping", function () {
       "carrot"
     ],
       expected = [
-        ["apple", 2, 16, 19, 32, 37, 47, 52, 55],
-        ["banana", 4, 16, 26, 23, 45, 34, 56, 62],
-        ["carrot", 16, 8, 24, 30, 42, 33, 64, 62]
+        ["apple",   5,  1, 26, 26, 38, 34, 63, 62],
+        ["banana", 12, 14, 28, 24, 37, 34, 62, 49],
+        ["carrot",  4, 12, 25, 21, 48, 38, 61, 54]
       ],
       output;
     
