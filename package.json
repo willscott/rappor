@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/willscott/rappor",
   "dependencies": {
-    "sha-1": "^0.1.1"
+    "md5": "^2.0.0"
   },
   "devDependencies": {
     "chai": "^1.10.0",
