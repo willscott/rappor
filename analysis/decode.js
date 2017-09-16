@@ -38,3 +38,98 @@ exports.denoise = function (counts, params) {
 
   return output;
 };
+
+/**
+ * Fit - a basic lasso calculation to attempt to find which of a set of
+ * candidate strings are set given a set of observed counts (the output of
+ * denoise above).
+ */
+exports.fit = function (candidates, counts, lambda) {
+  var coefficients = new Float64Array(candidates.length);
+  // recompute delta for where to stop.
+  var update = function(candidate, counts, delt, innerProduct, lambda, sign) {
+    var num = 0;
+    for (var i = 0; i < counts.length; i++) {
+      num -= (candidate[i] * counts[i]) / (1 + Math.exp(innerProduct[i]))
+    }
+    num += lambda * sign;
+
+
+    // normalize
+    var denom = 0;
+    for (var i = 0; i < counts.length; i++) {
+      var ip = delt * Math.abs(candidate[i]);
+
+      if (Math.abs(innerProduct[i]) < ip) {
+        denom += candidate[i] * candidate[i] * 0.25
+      } else {
+        denom += candidate[i] * candidate[i] * 1.0 / (2.0 + Math.exp(Math.abs(innerProduct[i]) - ip) + Math.exp(ip - Math.abs(innerProduct[i])));
+      }
+    }
+    return -(num / denom);
+  };
+
+  // move to the next step
+  var step = function (candidate, counts, coeff, delt, innerProduct, l) {
+    var howMuch, sign = 0.0;
+    if ((l > 0) && coeff == 0) {
+      sign = 1.0;
+      howMuch = update(candidate, counts, delt, innerProduct, l, sign);
+      if (howMuch <= 0) {
+        sign = -1.0;
+        howMuch = update(candidate, counts, delt, innerProduct, l, sign);
+        if (howMuch >= 0) {
+          howMuch = 0;
+        }
+      }
+    } else {
+      sign = coeff / (Math.abs(coeff) + (coeff == 0));
+      howMuch = update(candidate, counts, delt, innerProduct, l, sign);
+      if ((l > 0) && (sign * (coeff + howMuch) < 0)) {
+        howMuch = -coeff;
+      }
+    }
+    console.log(candidate, coeff, '=>', howMuch);
+    return howMuch;
+  };
+
+
+  var delta = new Float64Array(candidates.length);
+  for (var i = 0; i < candidates.length; i++) {
+    delta[i] = 1.0;
+  }
+  var innerProduct = new Float64Array(counts.length);
+  var deltaIP = new Float64Array(counts.length);
+
+  for(var i = 0; i < 1000; i++) {
+    var partialProduct = new Float64Array(counts.length);
+
+    var candidateNum = 0;
+    candidates.forEach(function(candidate) {
+      var candidateDelta = step(candidate, counts, coefficients[candidateNum], delta[candidateNum], innerProduct, (candidateNum==0)?0:lambda);
+      var boundedDelta = Math.min(Math.max(candidateDelta, -delta[candidateNum]), delta[candidateNum]);
+      for (var j = 0; j < counts.length; j++) {
+        deltaIP[j] = boundedDelta * candidate[j] * counts[j];
+        innerProduct[j] += deltaIP[j];
+        partialProduct[j] += deltaIP[j];
+      }
+      console.log('coeff ', candidateNum, '+=', boundedDelta);
+      coefficients[candidateNum] += boundedDelta;
+      delta[j] = Math.max(2 * Math.abs(boundedDelta), delta[j] / 2);
+
+      candidateNum++;
+    });
+
+    if (converged(innerProduct, partialProduct, 0.00001)) {
+      break;
+    }
+  }
+  return coefficients;
+}
+
+// Converged checks to see if we're still making progress.
+var converged = function(innerProduct, innerProductDelta, threshold) {
+  var productSum = innerProduct.reduce(function(a,b) {return Math.abs(a) + Math.abs(b);});
+  var deltaSum = innerProductDelta.reduce(function(a,b) {return Math.abs(a) + Math.abs(b);});
+  return (deltaSum/(1.0 + productSum)) <= threshold;
+}
