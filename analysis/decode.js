@@ -1,5 +1,5 @@
-/*jslint bitwise: true, node: true */
-/*globals Uint8Array,Uint32Array, DataView, crypto */
+/* jslint bitwise: true, node: true */
+/* globals exports,Float64Array */
 
 /**
  * Decoding summed RAPPOR'd values to estimate original string frequencies
@@ -14,8 +14,12 @@
  * Denoise - estimates the number of times each bit in each cohort was
  * originally set. Follows the algorithm at:
  * https://github.com/google/rappor/blob/761aa0bcd84/analysis/R/decode.R#L21
+ *
+ * @param counts The aggregated rappor bloom filters.
+ * @param params The rappor parameters of how much noise has been injected.
+ * @returns Updated counts with expected noise removed.
  */
-exports.denoise = function (counts, params) {
+exports.Denoise = function (counts, params) {
   'use strict';
   var i, j,
     cohort, row,
@@ -48,8 +52,8 @@ exports.fit = function (candidates, counts, lambda) {
   var coefficients = new Float64Array(candidates.length);
   // recompute delta for where to stop.
   var update = function(candidate, counts, delt, innerProduct, lambda, sign) {
-    var num = 0;
-    for (var i = 0; i < counts.length; i++) {
+    var num = 0, i;
+    for (i = 0; i < counts.length; i++) {
       num -= (candidate[i] * counts[i]) / (1 + Math.exp(innerProduct[i]))
     }
     num += lambda * sign;
@@ -57,7 +61,7 @@ exports.fit = function (candidates, counts, lambda) {
 
     // normalize
     var denom = 0;
-    for (var i = 0; i < counts.length; i++) {
+    for (i = 0; i < counts.length; i++) {
       var ip = delt * Math.abs(candidate[i]);
 
       if (Math.abs(innerProduct[i]) < ip) {
@@ -89,36 +93,39 @@ exports.fit = function (candidates, counts, lambda) {
         howMuch = -coeff;
       }
     }
-    console.log(candidate, coeff, '=>', howMuch);
+
     return howMuch;
   };
 
 
   var delta = new Float64Array(candidates.length);
-  for (var i = 0; i < candidates.length; i++) {
+  var i;
+  for (i = 0; i < candidates.length; i++) {
     delta[i] = 1.0;
   }
   var innerProduct = new Float64Array(counts.length);
   var deltaIP = new Float64Array(counts.length);
 
-  for(var i = 0; i < 1000; i++) {
+  var perCandidate = function(candidate, num, partial) {
+    var candidateDelta = step(candidate, counts, coefficients[num], delta[num], innerProduct, (num==0)?0:lambda);
+    var boundedDelta = Math.min(Math.max(candidateDelta, -delta[num]), delta[num]);
+    for (var j = 0; j < counts.length; j++) {
+      deltaIP[j] = boundedDelta * candidate[j] * counts[j];
+      innerProduct[j] += deltaIP[j];
+      partial[j] += deltaIP[j];
+    }
+
+    coefficients[num] += boundedDelta;
+    delta[num] = Math.max(2 * Math.abs(boundedDelta), delta[num] / 2);
+  };
+
+  for(i = 0; i < 1000; i++) {
     var partialProduct = new Float64Array(counts.length);
 
     var candidateNum = 0;
-    candidates.forEach(function(candidate) {
-      var candidateDelta = step(candidate, counts, coefficients[candidateNum], delta[candidateNum], innerProduct, (candidateNum==0)?0:lambda);
-      var boundedDelta = Math.min(Math.max(candidateDelta, -delta[candidateNum]), delta[candidateNum]);
-      for (var j = 0; j < counts.length; j++) {
-        deltaIP[j] = boundedDelta * candidate[j] * counts[j];
-        innerProduct[j] += deltaIP[j];
-        partialProduct[j] += deltaIP[j];
-      }
-      console.log('coeff ', candidateNum, '+=', boundedDelta);
-      coefficients[candidateNum] += boundedDelta;
-      delta[j] = Math.max(2 * Math.abs(boundedDelta), delta[j] / 2);
-
-      candidateNum++;
-    });
+    for (var j = 0; j < candidates.length; j++) {
+      perCandidate(candidates[j], j, partialProduct);
+    }
 
     if (converged(innerProduct, partialProduct, 0.00001)) {
       break;
