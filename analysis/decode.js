@@ -54,7 +54,7 @@ exports.fit = function (candidates, counts, lambda) {
   var update = function(candidate, counts, delt, innerProduct, lambda, sign) {
     var num = 0, i;
     for (i = 0; i < counts.length; i++) {
-      num -= (candidate[i] * counts[i]) / (1 + Math.exp(innerProduct[i]))
+      num -= candidate[i] * counts[i] / (1 + Math.exp(innerProduct[i]))
     }
     num += lambda * sign;
 
@@ -73,10 +73,10 @@ exports.fit = function (candidates, counts, lambda) {
     return -(num / denom);
   };
 
-  // move to the next step
+  // move to the next step (where the next basis will become relevant)
   var step = function (candidate, counts, coeff, delt, innerProduct, l) {
     var howMuch, sign = 0.0;
-    if ((l > 0) && coeff == 0) {
+    if (l > 0 && coeff == 0) {
       sign = 1.0;
       howMuch = update(candidate, counts, delt, innerProduct, l, sign);
       if (howMuch <= 0) {
@@ -89,7 +89,7 @@ exports.fit = function (candidates, counts, lambda) {
     } else {
       sign = coeff / (Math.abs(coeff) + (coeff == 0));
       howMuch = update(candidate, counts, delt, innerProduct, l, sign);
-      if ((l > 0) && (sign * (coeff + howMuch) < 0)) {
+      if (l > 0 && sign * (coeff + howMuch) < 0) {
         howMuch = -coeff;
       }
     }
@@ -106,25 +106,23 @@ exports.fit = function (candidates, counts, lambda) {
   var innerProduct = new Float64Array(counts.length);
   var deltaIP = new Float64Array(counts.length);
 
-  var perCandidate = function(candidate, num, partial) {
-    var candidateDelta = step(candidate, counts, coefficients[num], delta[num], innerProduct, (num==0)?0:lambda);
-    var boundedDelta = Math.min(Math.max(candidateDelta, -delta[num]), delta[num]);
-    for (var j = 0; j < counts.length; j++) {
-      deltaIP[j] = boundedDelta * candidate[j] * counts[j];
-      innerProduct[j] += deltaIP[j];
-      partial[j] += deltaIP[j];
-    }
-
-    coefficients[num] += boundedDelta;
-    delta[num] = Math.max(2 * Math.abs(boundedDelta), delta[num] / 2);
-  };
-
+  // we iterate up to 1000 times, or until converged()
   for(i = 0; i < 1000; i++) {
     var partialProduct = new Float64Array(counts.length);
 
-    var candidateNum = 0;
+    // for each candidate, determine how much to head towards that candidate.
     for (var j = 0; j < candidates.length; j++) {
-      perCandidate(candidates[j], j, partialProduct);
+      var candidate = candidates[j];
+      var candidateDelta = step(candidate, counts, coefficients[j], delta[j], innerProduct, (j == 0) ? 0 : lambda);
+      var boundedDelta = Math.min(Math.max(candidateDelta, -delta[j]), delta[j]);
+      for (var c = 0; c < counts.length; c++) {
+        deltaIP[c] = boundedDelta * candidate[c] * counts[c];
+        innerProduct[c] += deltaIP[c];
+        partialProduct[c] += deltaIP[c];
+      }
+
+      coefficients[j] += boundedDelta;
+      delta[j] = Math.max(2 * Math.abs(boundedDelta), delta[j] / 2);
     }
 
     if (converged(innerProduct, partialProduct, 0.00001)) {
@@ -132,11 +130,15 @@ exports.fit = function (candidates, counts, lambda) {
     }
   }
   return coefficients;
-}
+};
 
 // Converged checks to see if we're still making progress.
 var converged = function(innerProduct, innerProductDelta, threshold) {
-  var productSum = innerProduct.reduce(function(a,b) {return Math.abs(a) + Math.abs(b);});
-  var deltaSum = innerProductDelta.reduce(function(a,b) {return Math.abs(a) + Math.abs(b);});
-  return (deltaSum/(1.0 + productSum)) <= threshold;
-}
+  var productSum = innerProduct.reduce(function(a,b) {
+    return Math.abs(a) + Math.abs(b);
+  });
+  var deltaSum = innerProductDelta.reduce(function(a,b) {
+    return Math.abs(a) + Math.abs(b);
+  });
+  return deltaSum/(1.0 + productSum) <= threshold;
+};
