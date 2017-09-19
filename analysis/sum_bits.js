@@ -1,5 +1,4 @@
 /*jslint bitwise: true, node: true */
-/*globals Uint8Array,Uint32Array, DataView, crypto */
 
 /**
  * Read RAPPOR'd values and sum the bits to produce a counting bloom filter

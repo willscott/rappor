@@ -13,7 +13,7 @@ var gausian_random = function (values) {
     variance = values / 6,
     gaussian = require('gaussian')(mean, variance),
     value;
-  
+
   while (true) {
     value = Math.floor(gaussian.ppf(Math.random()));
     if (value >= 0 && value < values) {
@@ -40,7 +40,7 @@ var generate_simulated_input = function (rand, params) {
       parameters[row] = params[row];
     }
   }
-  
+
   for (i = 0; i < parameters.NUM_CLIENTS; i += 1) {
     row = [];
     for (j = 0; j < parameters.NUM_VALUES_PER_CLIENT; j += 1) {
@@ -82,7 +82,7 @@ describe("RAPPOR Aggregate Statistics", function () {
     input = generate_simulated_input(uniform_random, {
       NUM_CLIENTS: 100
     });
-    
+
     for (i = 0; i < input.length; i += 1) {
       encoder = new rappor.Encoder('u' + i, params);
       for (j = 0; j < input[i].length; j += 1) {
@@ -126,7 +126,7 @@ describe("RAPPOR Aggregate Statistics", function () {
     input = generate_simulated_input(gausian_random, {
       NUM_CLIENTS: 100
     });
-    
+
     for (i = 0; i < input.length; i += 1) {
       encoder = new rappor.Encoder('u' + i, params);
       for (j = 0; j < input[i].length; j += 1) {
@@ -139,7 +139,7 @@ describe("RAPPOR Aggregate Statistics", function () {
     expect(parseInt(sum[0].split(',')[0], 10) +
            parseInt(sum[1].split(',')[0], 10)).to.equal(100 * 7);
 
-    sum = decode.denoise(sum, params);
+    sum = decode.Denoise(sum, params);
     // Here we look for a peak - namely that there is some item in each
     // cohort at mean + 4sigma. That presence indicates to us that this
     // is not just a uniform distribution, although it's just a sanity

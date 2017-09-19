@@ -1,5 +1,6 @@
 /* jslint bitwise: true, node: true */
 /* globals exports,Float64Array */
+var qnorm = require('./qnorm');
 
 /**
  * Decoding summed RAPPOR'd values to estimate original string frequencies
@@ -44,17 +45,21 @@ exports.Denoise = function (counts, params) {
 };
 
 /**
- * Fit - a basic lasso calculation to attempt to find which of a set of
+ * Lasso - a basic lasso calculation to attempt to find which of a set of
  * candidate strings are set given a set of observed counts (the output of
  * denoise above).
+ * lambda is a fitting paramter - generally below 80% of count size for
+ * sparseness, and capped to maintain better performance.
  */
-exports.fit = function (candidates, counts, lambda) {
+exports.Lasso = function (candidates, counts, lambda) {
+  // The coefficients we're generating
   var coefficients = new Float64Array(candidates.length);
-  // recompute delta for where to stop.
-  var update = function(candidate, counts, delt, innerProduct, lambda, sign) {
+
+  // nextDelta - figures out where the next step should be
+  var nextDelta = function(candidate, counts, delt, innerProduct, lambda, sign) {
     var num = 0, i;
     for (i = 0; i < counts.length; i++) {
-      num -= candidate[i] * counts[i] / (1 + Math.exp(innerProduct[i]))
+      num -= candidate[i] * counts[i] / (1 + Math.exp(innerProduct[i]));
     }
     num += lambda * sign;
 
@@ -65,7 +70,7 @@ exports.fit = function (candidates, counts, lambda) {
       var ip = delt * Math.abs(candidate[i]);
 
       if (Math.abs(innerProduct[i]) < ip) {
-        denom += candidate[i] * candidate[i] * 0.25
+        denom += candidate[i] * candidate[i] * 0.25;
       } else {
         denom += candidate[i] * candidate[i] * 1.0 / (2.0 + Math.exp(Math.abs(innerProduct[i]) - ip) + Math.exp(ip - Math.abs(innerProduct[i])));
       }
@@ -78,17 +83,17 @@ exports.fit = function (candidates, counts, lambda) {
     var howMuch, sign = 0.0;
     if (l > 0 && coeff == 0) {
       sign = 1.0;
-      howMuch = update(candidate, counts, delt, innerProduct, l, sign);
+      howMuch = nextDelta(candidate, counts, delt, innerProduct, l, sign);
       if (howMuch <= 0) {
         sign = -1.0;
-        howMuch = update(candidate, counts, delt, innerProduct, l, sign);
+        howMuch = nextDelta(candidate, counts, delt, innerProduct, l, sign);
         if (howMuch >= 0) {
           howMuch = 0;
         }
       }
     } else {
       sign = coeff / (Math.abs(coeff) + (coeff == 0));
-      howMuch = update(candidate, counts, delt, innerProduct, l, sign);
+      howMuch = nextDelta(candidate, counts, delt, innerProduct, l, sign);
       if (l > 0 && sign * (coeff + howMuch) < 0) {
         howMuch = -coeff;
       }
@@ -140,5 +145,44 @@ var converged = function(innerProduct, innerProductDelta, threshold) {
   var deltaSum = innerProductDelta.reduce(function(a,b) {
     return Math.abs(a) + Math.abs(b);
   });
-  return deltaSum/(1.0 + productSum) <= threshold;
+  return deltaSum / (1.0 + productSum) <= threshold;
+};
+
+/*
+ * ComputePrivacyGuarantees - given a set of rappor parameters, a population
+ * size, and a underlying prevelance alpha, what are the actual privacy
+ * expectations?
+ * returns a map with:
+ * effective p, q, detection frequency, and exponential parameters
+ */
+exports.ComputePrivacyGuarantees = function(params, alpha, N) {
+  var p = params.prob_p,
+    q = params.prob_q,
+    f = params.prob_f,
+    h = params.num_hashes;
+
+  var q2 = 0.5 * f * (p + q) + (1 - f) * q;
+  var p2 = 0.5 * f * (p + q) + (1 - f) * p;
+
+  var exp_e_one = Math.exp((q2 * (1 - p2)) / (p2 * (1 - q2)), h);
+  if (exp_e_one < 1) {
+    exp_e_one = 1/ exp_e_one;
+  }
+  var e_one = Math.log(exp_e_one);
+
+  var exp_e_inf = Math.exp((1 - 0.5 * f) / (0.5 * f), 2 * h);
+  var e_inf = Math.log(exp_e_inf);
+
+  var std_dev_counts = Math.sqrt(p2 * (1 - p2) * N) / (q2 - p2);
+  var detection_freq = qnorm.qnorm(1 - alpha) * std_dev_counts / N;
+
+  return {
+    "effective_p": p2,
+    "effective_q": q2,
+    "exp_e_1": exp_e_one,
+    "e_1": e_one,
+    "exp_e_inf": exp_e_inf,
+    "e_inf": e_inf,
+    "detection_freq": detection_freq
+  };
 };
