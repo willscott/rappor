@@ -19,49 +19,49 @@ var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
   rappor_sum[cohort][0] += 1;
 };
 
+/**
+ * Parse rappors from a collection of individual reports into the counts format
+ * used in the rest of decode.
+ * @param rappors Array of strings of format "userid,cohort,bloombits"
+ * @param decodeFunction a function(str, buf) that converts encoded bits into a typed array
+ * @param params the rappor parameters
+ * @returns counts - an array organized by cohort of [#in cohort, typed array of bit counts]
+ */
+exports.ParseRappors = function (rappors, decodeFunction, params) {
+  var counts = new Array(params.num_cohorts),
+    bufferBits = params.num_bloombits / 8 + (params.num_bloombits % 8 > 0 ? 1 : 0);
+  for (var i = 0; i < counts.length; i++) {
+    //TODO: flexibility in count storage type.
+    counts[i] = [0, new Uint32Array(params.num_bloombits)];
+  }
+  rappors.map(function (rappor) {
+    var buffer = new Uint8Array(bufferBits);
+    var parts = rappor.split(",");
+    var cohort = parseInt(parts[1], 10);
+    decodeFunction(parts[2], buffer.buffer);
+    for (var j = 0; j < params.num_bloombits; j++) {
+      if ((buffer[j >> 3] & (1 << (j % 8))) !== 0) {
+        counts[cohort][1][j] += 1;
+      }
+    }
+    counts[cohort][0] += 1;
+  });
+  return counts;
+};
+
 var sum_bits = function (params, data) {
   'use strict';
   // Sum format is:
   // [#entries in cohort][sum of each bloom bit...]
+  var bu = require("../bufferUtil");
+  var counts = exports.ParseRappors(data, bu.fromBinaryString, params);
 
-  var sums = [],
-    i,
-    j,
-    row,
-    cohort,
-    irr,
-    bit_num;
-
-  // Initialize sums.
-  for (i = 0; i < params.num_cohorts; i += 1) {
-    row = [0];
-    for (j = 0; j < params.num_bloombits; j += 1) {
-      row.push(0);
+  return counts.map(function (cohort) {
+    var arr = [cohort[0]];
+    for (var i = 0; i < params.num_bloombits; i++) {
+      arr.push(cohort[1][i]);
     }
-    sums.push(row);
-  }
-
-  for (i = 0; i < data.length; i += 1) {
-    // unput rows are a csv formatted as [user_id, cohort, irr);
-    row = data[i].split(',');
-    cohort = parseInt(row[1], 10);
-    irr = row[2];
-    sums[cohort][0] += 1;
-
-    if (irr.length !== params.num_bloombits) {
-      throw new Error("Expected " + params.num_bloombits + " bits, but got " +
-                      irr.length);
-    }
-    for (j = 0; j < irr.length; j += 1) {
-      bit_num = params.num_bloombits - j;
-      if (irr[j] === '1') {
-        sums[cohort][bit_num] += 1;
-      }
-    }
-  }
-
-  return sums.map(function (array) {
-    return array.join(',');
+    return arr.join(",");
   });
 };
 

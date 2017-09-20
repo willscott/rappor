@@ -230,3 +230,25 @@ exports.ComputePrivacyGuarantees = function(params, alpha, N) {
     "detection_freq": detection_freq
   };
 };
+
+/**
+ * Attempt decoding of a set of rappor submissions.
+ */
+exports.Decode = function(counts, candidates, params, alpha) {
+  // Check inputs
+  if (alpha == undefined) {
+    alpha = 0.05;
+  }
+
+  var f = params.prob_f,
+    p = params.prob_p,
+    q = params.prob_q;
+  if (f == 1 || p == q) {
+    return new Error("Parameters imply random noise.");
+  }
+
+  var estimates = exports.EstimateBloomCounts(counts, params);
+
+  // efficiency: Drop cohorts without reports
+  return estimates;
+};

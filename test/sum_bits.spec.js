@@ -22,7 +22,7 @@ describe("RAPPOR Analysis", function () {
       cohort = 42,
       expected_sum,
       i;
-    
+
     report[0] = 0x1d; // from LSB, bits 1,3,4,5 set.
 
     // Empty sums.
@@ -52,7 +52,7 @@ describe("RAPPOR Analysis", function () {
       ],
       expected_output = [
         "0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0",
-        "2,1,1,2,2,1,1,0,0,1,1,1,1,0,0,0,0"
+        "2,0,0,0,0,1,1,1,1,0,0,1,1,2,2,1,1"
       ],
       params = {
         num_bloombits: 16,

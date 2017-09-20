@@ -54,6 +54,17 @@ exports.toBinaryString = function (a) {
   return out;
 };
 
+exports.fromBinaryString = function (str, buf) {
+  'use strict';
+  var view = new Uint8Array(buf),
+    i;
+  for (i = 0; i < str.length; i++) {
+    if (str[i] === '1') {
+      view[(i >> 3)] |= (1 << (i % 8));
+    }
+  }
+};
+
 exports.toHexString = function (a) {
   'use strict';
   var view = new Uint8Array(a),
@@ -80,6 +91,6 @@ exports.fromHexString = function (str, buf) {
   }
 
   for (i = 0; i < str.length; i += 2) {
-    buf[i/2] = (encodingArr.indexOf(str[i]) << 4) + encodingArr.indexOf(str[i + 1]);
+    buf[i>>1] = (encodingArr.indexOf(str[i]) << 4) + encodingArr.indexOf(str[i + 1]);
   }
 };
