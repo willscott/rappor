@@ -27,7 +27,7 @@ var update_rappor_sums = function (rappor_sum, rappor, cohort, params) {
  * @param params the rappor parameters
  * @returns counts - an array organized by cohort of [#in cohort, typed array of bit counts]
  */
-exports.ParseRappors = function (rappors, decodeFunction, params) {
+var parse_rappors = function (rappors, decodeFunction, params) {
   var counts = new Array(params.num_cohorts),
     bufferBits = params.num_bloombits / 8 + (params.num_bloombits % 8 > 0 ? 1 : 0);
   for (var i = 0; i < counts.length; i++) {
@@ -49,12 +49,16 @@ exports.ParseRappors = function (rappors, decodeFunction, params) {
   return counts;
 };
 
+/**
+ * sum_bits outputs a disk-format used for storing aggregate rappor's, essentially
+ * the CSV serialization of the in-memory array used in decoding.
+ */
 var sum_bits = function (params, data) {
   'use strict';
   // Sum format is:
   // [#entries in cohort][sum of each bloom bit...]
   var bu = require("../bufferUtil");
-  var counts = exports.ParseRappors(data, bu.fromBinaryString, params);
+  var counts = parse_rappors(data, bu.fromBinaryString, params);
 
   return counts.map(function (cohort) {
     var arr = [cohort[0]];
@@ -66,4 +70,5 @@ var sum_bits = function (params, data) {
 };
 
 exports.update_rappor_sums = update_rappor_sums;
+exports.parse_rappors = parse_rappors;
 exports.sum_bits = sum_bits;

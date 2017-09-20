@@ -5,12 +5,23 @@
 describe("Statistical Analysis", function() {
   'use strict';
 
-  var qnorm = require('../analysis/qnorm'),
+  var qnorm = require('../analysis/norm'),
       expect = require('chai').expect;
 
   it("Uses qnorm to invert normal Distributions", function() {
     expect(qnorm.qnorm(0.85, 70, 3)).to.be.greaterThan(70);
     expect(qnorm.qnorm(0.5)).to.equal(0);
+  });
+  it("Uses rnorm to sample normal Distributions", function() {
+    var samples = qnorm.rnorm(100, 0, 1);
+
+    // calculate mean and variance:
+    var s = qnorm.properites(samples);
+    expect(Math.abs(s.mean)).to.be.lessThan(0.5);
+    expect(Math.abs(Math.pow(s.variance, 0.5) - 1)).to.be.lessThan(0.5);
+    for (var i = 0; i < samples.length; i ++) {
+      expect(samples[i]).not.to.equal(0);
+    }
   });
 });
 

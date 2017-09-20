@@ -1,6 +1,6 @@
 /* jslint bitwise: true, node: true */
 /* globals exports,Float64Array */
-var qnorm = require('./qnorm');
+var norm = require('./norm');
 
 /**
  * Decoding summed RAPPOR'd values to estimate original string frequencies
@@ -86,6 +86,27 @@ exports.EstimateBloomCounts = function (counts, params) {
     return out;
   });
   return [estimates, stdevs];
+};
+
+/**
+ * Takes the estimates from EstimateBloomCounts, and simulates resampling the
+ * bloom filter by adding gaussian noise with estimated stdev, to model variance
+ * in coefficients derived from them.
+ */
+exports.ResampleEstimates = function (estimates) {
+  var newEstimates = [];
+  var newStdevs = [];
+  for (var i = 0; i < estimates[0].length; i++) {
+    var newCohort = [];
+    var newCohortSD = [];
+    for (var j = 0; j < estimates[0][i].length; j++) {
+      newCohort.push(estimates[0][i][j] + norm.rnorm(1, 0, estimates[1][i][j]));
+      newCohortSD.push(estimates[1][i][j] * Math.pow(2, 0.5));
+    }
+    newEstimates.push(newCohort);
+    newStdevs.push(newCohortSD);
+  }
+  return [newEstimates, newStdevs];
 };
 
 /**
@@ -192,6 +213,16 @@ var converged = function(innerProduct, innerProductDelta, threshold) {
   return deltaSum / (1.0 + productSum) <= threshold;
 };
 
+/**
+ * FitDistribution produces a list of how candidates in the map are most likely
+ * to have been distributed to produce the bit estimates seen in estimates.
+ */
+exports.FitDistribution = function (estimates, map) {
+  var coeffs = exports.Lasso();
+  // TODO: constrain coefficients with LSEI (least squares solving)
+  return coeffs;
+};
+
 /*
  * ComputePrivacyGuarantees - given a set of rappor parameters, a population
  * size, and a underlying prevelance alpha, what are the actual privacy
@@ -208,17 +239,17 @@ exports.ComputePrivacyGuarantees = function(params, alpha, N) {
   var q2 = 0.5 * f * (p + q) + (1 - f) * q;
   var p2 = 0.5 * f * (p + q) + (1 - f) * p;
 
-  var exp_e_one = Math.exp((q2 * (1 - p2)) / (p2 * (1 - q2)), h);
+  var exp_e_one = Math.pow((q2 * (1 - p2)) / (p2 * (1 - q2)), h);
   if (exp_e_one < 1) {
     exp_e_one = 1/ exp_e_one;
   }
   var e_one = Math.log(exp_e_one);
 
-  var exp_e_inf = Math.exp((1 - 0.5 * f) / (0.5 * f), 2 * h);
+  var exp_e_inf = Math.pow((1 - 0.5 * f) / (0.5 * f), 2 * h);
   var e_inf = Math.log(exp_e_inf);
 
   var std_dev_counts = Math.sqrt(p2 * (1 - p2) * N) / (q2 - p2);
-  var detection_freq = qnorm.qnorm(1 - alpha) * std_dev_counts / N;
+  var detection_freq = norm.qnorm(1 - alpha) * std_dev_counts / N;
 
   return {
     "effective_p": p2,
@@ -250,5 +281,13 @@ exports.Decode = function(counts, candidates, params, alpha) {
   var estimates = exports.EstimateBloomCounts(counts, params);
 
   // efficiency: Drop cohorts without reports
+
+  for (var i = 0; i < 5; i++) {
+    coefficients = exports.FitDistribution(estimates, candidates);
+    estimates = exports.Resample(estimates);
+  }
+
+
+
   return estimates;
 };

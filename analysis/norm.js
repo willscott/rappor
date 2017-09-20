@@ -71,3 +71,44 @@ exports.qnorm = function (p, mu, sigma) {
   }
   return mu + sigma * val;
 };
+
+/**
+ * Rnorm samples a random normal variate for a given normal distribution.
+ * based on the https://en.wikipedia.org/wiki/Box-Muller_transform
+ */
+exports.rnorm = function (cnt, mu, sigma) {
+  if (cnt == 1) {
+    // TODO: use crypto.random?
+    var x = Math.random(),
+      y = Math.random();
+    var a = Math.sqrt(-2 * Math.log(x));
+    var b = 2 * Math.PI * y;
+    var z1 = a * Math.cos(b);
+    return z1 * sigma + mu;
+  } else {
+    var out = [];
+    for (var i = 0; i < cnt; i++) {
+      out.push(exports.rnorm(1, mu, sigma));
+    }
+    return out;
+  }
+};
+
+/**
+ * calcualte the mean and variance of a list of samples
+ */
+exports.properites = function (list) {
+  var sum = 0;
+  for (var i = 0; i < list.length; i++) {
+    sum += list[i];
+  }
+  var mean = sum / list.length,
+    variance = 0;
+  for (i = 0; i < list.length; i++) {
+    variance += Math.pow(list[i] - mean, 2);
+  }
+  return {
+    'mean': mean,
+    'variance': variance / list.length
+  };
+};
