@@ -13,3 +13,37 @@ describe("Statistical Analysis", function() {
     expect(qnorm.qnorm(0.5)).to.equal(0);
   });
 });
+
+describe("Rappor Decoding", function() {
+  'use strict';
+
+  var decoder = require('../analysis/decode'),
+    expect = require('chai').expect,
+    params = {
+      num_cohorts: 64,
+      num_hashes: 2,
+      num_bloombits: 16,
+      prob_p: 0.4,
+      prob_q: 0.7,
+      prob_f: 0.3,
+      flag_oneprr: false
+    };
+
+  it("Estimates Bloom Counts", function() {
+    var sampleRappor = [];
+    for (var i = 0; i < params.num_cohorts; i++) {
+      var cohort = [100];
+      for (var j = 0; j < params.num_bloombits; j++) {
+        cohort.push(50);
+      }
+      sampleRappor.push(cohort);
+    }
+
+    var estimates = decoder.EstimateBloomCounts(sampleRappor, params);
+    for (i = 0; i < params.num_cohorts; i++) {
+      expect(estimates[0][i][0]).to.equal(estimates[0][i][1]);
+      expect(estimates[0][i][0]).to.be.greaterThan(0);
+      expect(estimates[0][i][0]).to.be.lessThan(1);
+    }
+  });
+});

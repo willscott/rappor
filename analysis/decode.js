@@ -45,6 +45,50 @@ exports.Denoise = function (counts, params) {
 };
 
 /**
+ * Decodes summed RAPPOR'd values like Denoise, but also estimates the
+ * expected relative deviation present at each position.
+ * counts has 1 array per cohort. the first element is the number of responders
+ * in the cohort and the remainder are the individual bits.
+ */
+exports.EstimateBloomCounts = function (counts, params) {
+  var p = params.prob_p,
+      q = params.prob_q,
+      f = params.prob_f,
+      p11 = q * (1 - f / 2) + p * f / 2,
+      p01 = p * (1 - f / 2) + q * f / 2,
+      p2 = p11 - p01,
+      i;
+
+  var estimates = counts.map(function (cohort) {
+    var out = [];
+    for (var j = 1; j < cohort.length; j++) {
+      var est = (cohort[j] - p01 * cohort[0]) / p2 / cohort[0];
+      if (est == Infinity) {
+        est = 0;
+      }
+      out.push(est);
+    }
+    return out;
+  });
+
+  var stdevs = counts.map(function (cohort) {
+    var total = cohort[0];
+    var out = [];
+    for (var j = 1; j < cohort.length; j++) {
+      var itm = cohort[j];
+      var phat = (itm - p01 * total) / (total * p2);
+      phat = Math.max(0, Math.min(1, phat));
+      var r = phat * p11 + (1 - phat) * p01;
+      var variance = total * r * (1 - r) / (p2 * p2);
+      var stdev = Math.sqrt(variance) / total;
+      out.push(stdev);
+    }
+    return out;
+  });
+  return [estimates, stdevs];
+};
+
+/**
  * Lasso - a basic lasso calculation to attempt to find which of a set of
  * candidate strings are set given a set of observed counts (the output of
  * denoise above).
