@@ -326,9 +326,16 @@ exports.ComputePerformance = function (candidates, estimates, rappor_cnt, params
 
 /**
  * Attempt decoding of a set of rappor submissions.
+ * @param counts Rappor counts. a matrix where each row is a cohort. the first
+ *  element of that array is the total number of submissions, and subsequent
+ *  entries are the number of times the bloomfilter bit at that position were set.
+ * @param candidates Candidate strings to model over the distribution. An array
+ *  of strings.
  */
 exports.Decode = function(counts, candidates, params, alpha) {
-  var norm = require('./norm');
+  var norm = require('./norm'),
+    hash_candidates = require('./hash_candidates');
+  candidate_bits = hash_candidates.hashCandidates(params, candidates);
   // Check inputs
   if (alpha == undefined) {
     alpha = 0.05;
@@ -348,7 +355,7 @@ exports.Decode = function(counts, candidates, params, alpha) {
 
   var coefficients = [];
   for (var i = 0; i < 5; i++) {
-    coefficients.push(exports.FitDistribution(estimates, candidates));
+    coefficients.push(exports.FitDistribution(estimates, candidate_bits));
     estimates = exports.ResampleEstimates(estimates);
   }
 

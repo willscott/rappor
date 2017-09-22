@@ -32,7 +32,6 @@ describe("Rappor Decoding", function() {
     aggregator = require('../analysis/sum_bits'),
     bu = require('../bufferUtil'),
     rappor = require('../rappor'),
-    hasher = require('../analysis/hash_candidates'),
     expect = require('chai').expect,
     params = {
       num_cohorts: 64,
@@ -64,7 +63,6 @@ describe("Rappor Decoding", function() {
 
   it("Decodes aggregate RAPPORs", function() {
     var candidates = ['test', 'another test', 'a third test', 'a fourth test'];
-    var map = hasher.hashCandidates(params, candidates);
 
     var rappors = [];
     for (var i = 0; i < 300; i++) {
@@ -74,7 +72,7 @@ describe("Rappor Decoding", function() {
 
     var counts = aggregator.parse_rappors(rappors, bu.fromBinaryString, params);
 
-    var analysis = decoder.Decode(counts, map, params, 0.05);
+    var analysis = decoder.Decode(counts, candidates, params);
     console.log(analysis);
   });
 });
