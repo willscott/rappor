@@ -46,9 +46,9 @@ describe("Rappor Decoding", function() {
   it("Estimates Bloom Counts", function() {
     var sampleRappor = [];
     for (var i = 0; i < params.num_cohorts; i++) {
-      var cohort = [100];
+      var cohort = [100, []];
       for (var j = 0; j < params.num_bloombits; j++) {
-        cohort.push(50);
+        cohort[1].push(50);
       }
       sampleRappor.push(cohort);
     }

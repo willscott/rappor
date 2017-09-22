@@ -63,8 +63,8 @@ exports.EstimateBloomCounts = function (counts, params) {
   var estimates = counts.map(function (cohort) {
     var out = [];
     count += cohort[0];
-    for (var j = 1; j < cohort.length; j++) {
-      var est = (cohort[j] - p01 * cohort[0]) / p2 / cohort[0];
+    for (var j = 0; j < cohort[1].length; j++) {
+      var est = (cohort[1][j] - p01 * cohort[0]) / p2 / cohort[0];
       if (est == Infinity) {
         est = 0;
       }
@@ -76,8 +76,8 @@ exports.EstimateBloomCounts = function (counts, params) {
   var stdevs = counts.map(function (cohort) {
     var total = cohort[0];
     var out = [];
-    for (var j = 1; j < cohort.length; j++) {
-      var itm = cohort[j];
+    for (var j = 0; j < cohort[1].length; j++) {
+      var itm = cohort[1][j];
       var phat = (itm - p01 * total) / (total * p2);
       phat = Math.max(0, Math.min(1, phat));
       var r = phat * p11 + (1 - phat) * p01;
@@ -121,6 +121,11 @@ exports.ResampleEstimates = function (estimates) {
 exports.Lasso = function (candidates, counts, lambda) {
   // The coefficients we're generating
   var coefficients = new Float64Array(candidates.length);
+  console.log("candidate length", candidates.length);
+  console.log("candidate width", candidates[0].length);
+  console.log("counts length", counts.length);
+  console.log("counts width", counts[0].length);
+
 
   // nextDelta - figures out where the next step should be
   var nextDelta = function(candidate, counts, delt, innerProduct, lambda, sign) {
@@ -358,6 +363,7 @@ exports.Decode = function(counts, candidates, params, alpha) {
     coefficients.push(exports.FitDistribution(estimates, candidate_bits));
     estimates = exports.ResampleEstimates(estimates);
   }
+  console.log(coefficients);
 
   // From the several attempts at fitting, filter to coefficients we care about.
   var reported = [];
@@ -365,7 +371,7 @@ exports.Decode = function(counts, candidates, params, alpha) {
     // TODO: cleanup.
     var props = norm.properties([coefficients[0][i], coefficients[1][i], coefficients[2][i], coefficients[3][i], coefficients[4][i]]);
     if (props.mean > 1e-6 + 2 * Math.sqrt(props.variance)) {
-      reported.push(i);
+      reported.push([candidates[i], props.mean]);
     }
   }
 
@@ -382,7 +388,7 @@ exports.Decode = function(counts, candidates, params, alpha) {
   };
 
   return {
-    fit: coefficients,
+    fit: reported,
     metrics: metrics,
     privacy: privacy
   };
