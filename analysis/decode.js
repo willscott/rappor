@@ -57,10 +57,12 @@ exports.EstimateBloomCounts = function (counts, params) {
       p11 = q * (1 - f / 2) + p * f / 2,
       p01 = p * (1 - f / 2) + q * f / 2,
       p2 = p11 - p01,
-      i;
+      i,
+      count = 0;
 
   var estimates = counts.map(function (cohort) {
     var out = [];
+    count += cohort[0];
     for (var j = 1; j < cohort.length; j++) {
       var est = (cohort[j] - p01 * cohort[0]) / p2 / cohort[0];
       if (est == Infinity) {
@@ -85,7 +87,7 @@ exports.EstimateBloomCounts = function (counts, params) {
     }
     return out;
   });
-  return [estimates, stdevs];
+  return [estimates, stdevs, count];
 };
 
 /**
@@ -218,8 +220,11 @@ var converged = function(innerProduct, innerProductDelta, threshold) {
  * to have been distributed to produce the bit estimates seen in estimates.
  */
 exports.FitDistribution = function (estimates, map) {
-  var coeffs = exports.Lasso();
+  // TODO: is pmax from gmxnet equivalent to lambda in lasso?
+  var coeffs = exports.Lasso(map, estimates[0], Math.min(500, map.length * 0.8));
+
   // TODO: constrain coefficients with LSEI (least squares solving)
+
   return coeffs;
 };
 
@@ -263,9 +268,67 @@ exports.ComputePrivacyGuarantees = function(params, alpha, N) {
 };
 
 /**
+ * determine how well the estimates account for the observed data.
+ */
+exports.ComputePerformance = function (candidates, estimates, rappor_cnt, params, alpha) {
+  var p = params.prob_p,
+    q = params.prob_q,
+    f = params.prob_f,
+    m = params.num_cohorts;
+  var q2 = 0.5 * f * (p + q) + (1 - f) * q;
+  var p2 = 0.5 * f * (p + q) + (1 - f) * p;
+  var resid_var = p2 * (1 - p2) * rappor_cnt / m / Math.pow(q2 - p2, 2);
+
+  var totalsumsquares = 0,
+    residualsumsquares = 0,
+    unexplainederror = 0,
+    estimate_mean = 0,
+    proportion = 0;
+  var errsumsquares = resid_var * candidates.length;
+
+  for (var i = 0; i < estimates[0].length; i++) {
+    estimate_mean += estimates[0][i];
+  }
+  estimate_mean /= estimates[0].length;
+
+  for (i = 0; i < estimates[0].length; i++) {
+    totalsumsquares += Math.pow(estimates[0][i] - estimate_mean, 2);
+  }
+
+  // TODO filter bad candidates.
+  /*
+  for (var i = 0; i < estimates[0].length; i++) {
+    if candidates[i] name is not legit {
+      filter
+    }
+  }
+  */
+
+  // TODO proportion of mass covered by fit.
+  proportion = 0;
+
+  // TODO: linear model predition to estimate residual sum of squares.
+  /*
+  var filtered_estimates = predict(lm(estimates))
+  for (var i = 0; i < filtered_estimates.length; i++) {
+    residualsumsquares += Math.pow(filtered_estimates[i] - estimate_mean, 2);
+  }
+  */
+
+  unexplainederror = totalsumsquares - errsumsquares - residualsumsquares;
+
+  return {
+    allocated: proportion,
+    explained: residualsumsquares / totalsumsquares,
+    missing: unexplainederror / totalsumsquares
+  };
+};
+
+/**
  * Attempt decoding of a set of rappor submissions.
  */
 exports.Decode = function(counts, candidates, params, alpha) {
+  var norm = require('./norm');
   // Check inputs
   if (alpha == undefined) {
     alpha = 0.05;
@@ -279,15 +342,41 @@ exports.Decode = function(counts, candidates, params, alpha) {
   }
 
   var estimates = exports.EstimateBloomCounts(counts, params);
+  var totalRappors = estimates[2];
 
   // efficiency: Drop cohorts without reports
 
+  var coefficients = [];
   for (var i = 0; i < 5; i++) {
-    coefficients = exports.FitDistribution(estimates, candidates);
-    estimates = exports.Resample(estimates);
+    coefficients.push(exports.FitDistribution(estimates, candidates));
+    estimates = exports.ResampleEstimates(estimates);
   }
 
+  // From the several attempts at fitting, filter to coefficients we care about.
+  var reported = [];
+  for (i = 0; i < coefficients[0].length; i++) {
+    // TODO: cleanup.
+    var props = norm.properties([coefficients[0][i], coefficients[1][i], coefficients[2][i], coefficients[3][i], coefficients[4][i]]);
+    if (props.mean > 1e-6 + 2 * Math.sqrt(props.variance)) {
+      reported.push(i);
+    }
+  }
 
+  // track how good the fit is
+  var perf = exports.ComputePerformance(reported, estimates[0], totalRappors, params, alpha);
 
-  return estimates;
+  // track how well the fit should be
+  var privacy = exports.ComputePrivacyGuarantees(params, alpha, totalRappors);
+  var metrics = {
+    'sample_size': totalRappors,
+    'allocated_mass': perf.allocated,
+    'explained': perf.explained,
+    'missing': perf.missing
+  };
+
+  return {
+    fit: coefficients,
+    metrics: metrics,
+    privacy: privacy
+  };
 };

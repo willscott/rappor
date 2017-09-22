@@ -16,7 +16,7 @@ describe("Statistical Analysis", function() {
     var samples = qnorm.rnorm(100, 0, 1);
 
     // calculate mean and variance:
-    var s = qnorm.properites(samples);
+    var s = qnorm.properties(samples);
     expect(Math.abs(s.mean)).to.be.lessThan(0.5);
     expect(Math.abs(Math.pow(s.variance, 0.5) - 1)).to.be.lessThan(0.5);
     for (var i = 0; i < samples.length; i ++) {
@@ -29,6 +29,10 @@ describe("Rappor Decoding", function() {
   'use strict';
 
   var decoder = require('../analysis/decode'),
+    aggregator = require('../analysis/sum_bits'),
+    bu = require('../bufferUtil'),
+    rappor = require('../rappor'),
+    hasher = require('../analysis/hash_candidates'),
     expect = require('chai').expect,
     params = {
       num_cohorts: 64,
@@ -56,5 +60,21 @@ describe("Rappor Decoding", function() {
       expect(estimates[0][i][0]).to.be.greaterThan(0);
       expect(estimates[0][i][0]).to.be.lessThan(1);
     }
+  });
+
+  it("Decodes aggregate RAPPORs", function() {
+    var candidates = ['test', 'another test', 'a third test', 'a fourth test'];
+    var map = hasher.hashCandidates(params, candidates);
+
+    var rappors = [];
+    for (var i = 0; i < 300; i++) {
+      var encoder = new rappor.Encoder(i, params);
+      rappors.push(encoder.encode("test").toString());
+    }
+
+    var counts = aggregator.parse_rappors(rappors, bu.fromBinaryString, params);
+
+    var analysis = decoder.Decode(counts, map, params, 0.05);
+    console.log(analysis);
   });
 });

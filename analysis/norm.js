@@ -97,7 +97,7 @@ exports.rnorm = function (cnt, mu, sigma) {
 /**
  * calcualte the mean and variance of a list of samples
  */
-exports.properites = function (list) {
+exports.properties = function (list) {
   var sum = 0;
   for (var i = 0; i < list.length; i++) {
     sum += list[i];
