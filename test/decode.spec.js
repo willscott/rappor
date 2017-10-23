@@ -65,7 +65,7 @@ describe("Rappor Decoding", function() {
     var candidates = ['test', 'another test', 'a third test', 'a fourth test'];
 
     var rappors = [];
-    for (var i = 0; i < 300; i++) {
+    for (var i = 0; i < 3000; i++) {
       var encoder = new rappor.Encoder(i, params);
       rappors.push(encoder.encode("test").toString());
     }
@@ -74,7 +74,7 @@ describe("Rappor Decoding", function() {
 
     return new Promise(function (resolve, reject) {
       var analysis = decoder.Decode(counts, candidates, params);
-      console.log(analysis);
+      expect(analysis.fit[0][0]).to.equal("test");
       resolve(true);
     });
   }).timeout(10000).slow(6000);

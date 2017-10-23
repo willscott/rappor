@@ -360,17 +360,20 @@ exports.Decode = function(counts, candidates, params, alpha) {
     return new Error("Parameters imply random noise.");
   }
 
-  var estimates = exports.EstimateBloomCounts(counts, params);
-  var totalRappors = estimates[2];
+  var originalEstimates = exports.EstimateBloomCounts(counts, params);
+  var totalRappors = originalEstimates[2];
 
   // efficiency: Drop cohorts without reports
 
   var coefficients = [];
-  for (i = 0; i < 5; i++) {
+  var estimates = exports.ResampleEstimates(originalEstimates);
+  for (i = 0; i < 10; i++) {
     coefficients.push(exports.FitDistribution(estimates, candidate_bits));
-    estimates = exports.ResampleEstimates(estimates);
+    // Divergence by will: by resampling estimates but maintaining stdev
+    // the overall deviation of means is better bounded, making it more likely
+    // for them to enter a fit.
+    estimates = exports.ResampleEstimates(originalEstimates);
   }
-  console.log(coefficients);
 
   // From the several attempts at fitting, filter to coefficients we care about.
   var reported = [];
