@@ -72,7 +72,10 @@ describe("Rappor Decoding", function() {
 
     var counts = aggregator.parse_rappors(rappors, bu.fromBinaryString, params);
 
-    var analysis = decoder.Decode(counts, candidates, params);
-    console.log(analysis);
-  });
+    return new Promise(function (resolve, reject) {
+      var analysis = decoder.Decode(counts, candidates, params);
+      console.log(analysis);
+      resolve(true);
+    });
+  }).timeout(10000).slow(6000);
 });

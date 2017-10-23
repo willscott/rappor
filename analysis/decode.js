@@ -121,11 +121,6 @@ exports.ResampleEstimates = function (estimates) {
 exports.Lasso = function (candidates, counts, lambda) {
   // The coefficients we're generating
   var coefficients = new Float64Array(candidates.length);
-  console.log("candidate length", candidates.length);
-  console.log("candidate width", candidates[0].length);
-  console.log("counts length", counts.length);
-  console.log("counts width", counts[0].length);
-
 
   // nextDelta - figures out where the next step should be
   var nextDelta = function(candidate, counts, delt, innerProduct, lambda, sign) {
@@ -190,6 +185,7 @@ exports.Lasso = function (candidates, counts, lambda) {
     // for each candidate, determine how much to head towards that candidate.
     for (var j = 0; j < candidates.length; j++) {
       var candidate = candidates[j];
+
       var candidateDelta = step(candidate, counts, coefficients[j], delta[j], innerProduct, (j == 0) ? 0 : lambda);
       var boundedDelta = Math.min(Math.max(candidateDelta, -delta[j]), delta[j]);
       for (var c = 0; c < counts.length; c++) {
@@ -226,7 +222,17 @@ var converged = function(innerProduct, innerProductDelta, threshold) {
  */
 exports.FitDistribution = function (estimates, map) {
   // TODO: is pmax from gmxnet equivalent to lambda in lasso?
-  var coeffs = exports.Lasso(map, estimates[0], Math.min(500, map.length * 0.8));
+
+  // estimates is computed in a matrix of [#cohorts x #bloombits].
+  // reflow to a single vector, mapped candidate strings are held.
+  var counts = estimates[0];
+  var reflowedCounts = [];
+  for (var i = 0; i < counts.length; i++) {
+    for (var j = 0; j < counts[i].length; j++) {
+      reflowedCounts.push(counts[i][j]);
+    }
+  }
+  var coeffs = exports.Lasso(map, reflowedCounts, Math.min(500, map.length * 0.8));
 
   // TODO: constrain coefficients with LSEI (least squares solving)
 
@@ -340,7 +346,8 @@ exports.ComputePerformance = function (candidates, estimates, rappor_cnt, params
 exports.Decode = function(counts, candidates, params, alpha) {
   var norm = require('./norm'),
     hash_candidates = require('./hash_candidates');
-  candidate_bits = hash_candidates.hashCandidates(params, candidates);
+  candidate_bits = hash_candidates.mapCandidates(params, candidates);
+
   // Check inputs
   if (alpha == undefined) {
     alpha = 0.05;
@@ -359,7 +366,7 @@ exports.Decode = function(counts, candidates, params, alpha) {
   // efficiency: Drop cohorts without reports
 
   var coefficients = [];
-  for (var i = 0; i < 5; i++) {
+  for (i = 0; i < 5; i++) {
     coefficients.push(exports.FitDistribution(estimates, candidate_bits));
     estimates = exports.ResampleEstimates(estimates);
   }
